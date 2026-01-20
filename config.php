@@ -1,15 +1,12 @@
 <?php
-// Database credentials
-$DBSERVER   = "localhost";   // Usually "localhost"
-$DBUSERNAME = "root";        // Default XAMPP user
-$DBPASSWORD = "";            // Default XAMPP password is empty
-$DBNAME     = "inventory_db"; // Your database name
+$DBSERVER   = "localhost";
+$DBUSERNAME = "root";
+$DBPASSWORD = "";
+$DBNAME     = "innoventory_db"; // Make sure this DB exists
 
-// Create connection
 $db = mysqli_connect($DBSERVER, $DBUSERNAME, $DBPASSWORD, $DBNAME);
 
-// Check connection
 if (!$db) {
-    die("Database connection failed: " . mysqli_connect_error());
+    die("Connection failed: " . mysqli_connect_error());
 }
 ?>

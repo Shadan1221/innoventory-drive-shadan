@@ -1,104 +1,123 @@
 <?php
-require_once "../session.php";
-require_once "../config.php";
+require_once "../../session.php";
+require_once "../../config.php";
 
-// ONLY ADMIN CAN ACCESS THIS PAGE
-if ($_SESSION["role"] !== "admin") {
-    header("Location: login.php");
+/* ---------------- AUTH CHECK ---------------- */
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../../index.php");
     exit;
 }
 
+$is_admin = ($_SESSION['role'] === 'admin');
 $msg = "";
 
-// UPDATE USER DATA
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
-    $id     = $_POST["id"];
-    $name   = $_POST["name"];
-    $role   = $_POST["role"];
-    $status = $_POST["status"];
-
-    $query = $db->prepare("
-        UPDATE users 
-        SET name=?, role=?, status=? 
-        WHERE id=?
-    ");
-    $query->bind_param("sssi", $name, $role, $status, $id);
-
-    if ($query->execute()) {
-        $msg = "User updated successfully!";
-    } else {
-        $msg = "Error updating user!";
-    }
-
-    $query->close();
+/* ---------------- DETERMINE TARGET USER ---------------- */
+if ($is_admin) {
+    // Admin can load any user
+    $user_id = $_GET['uid'] ?? $_SESSION['user_id'];
+} else {
+    // User can ONLY edit own profile
+    $user_id = $_SESSION['user_id'];
 }
 
-// GET USERS FOR DROPDOWN DISPLAY
-$users = mysqli_query($db, "SELECT id, name, email FROM users ORDER BY id ASC");
+/* ---------------- UPDATE USER ---------------- */
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    // Enforce server-side authority
+    $id   = $user_id;
+    $name = trim($_POST['name']);
+
+    if ($is_admin) {
+        $role   = $_POST['role'];
+        $status = $_POST['status'];
+    } else {
+        // Users cannot change role or status
+        $role   = $_SESSION['role'];
+        $status = 'approved';
+    }
+
+    $stmt = $db->prepare("
+        UPDATE users 
+        SET name = ?, role = ?, status = ?
+        WHERE id = ?
+    ");
+    $stmt->bind_param("sssi", $name, $role, $status, $id);
+
+    if ($stmt->execute()) {
+        $msg = "Profile updated successfully.";
+    } else {
+        $msg = "Error updating profile.";
+    }
+
+    $stmt->close();
+}
+
+/* ---------------- LOAD USER DATA ---------------- */
+$stmt = $db->prepare("SELECT id, name, email, role, status FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+/* ---------------- USERS LIST (ADMIN ONLY) ---------------- */
+if ($is_admin) {
+    $users = mysqli_query($db, "SELECT id, name, email FROM users ORDER BY id ASC");
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Update User</title>
+<title>Account Settings</title>
 </head>
 <body>
 
-<h2>Update User</h2>
+<h2>Account Settings</h2>
 
-<?php if($msg) echo "<p style='color:green;'>$msg</p>"; ?>
+<?php if ($msg): ?>
+    <p style="color:green;"><?php echo $msg; ?></p>
+<?php endif; ?>
 
-<!-- SELECT USER -->
-<form method="GET" action="">
+<!-- ADMIN: SELECT USER -->
+<?php if ($is_admin): ?>
+<form method="GET">
     <select name="uid" required>
         <option value="">Select user</option>
-        <?php while($u = mysqli_fetch_assoc($users)): ?>
-            <option value="<?= $u['id']; ?>">
-                <?= $u['name']; ?> (<?= $u['email']; ?>)
+        <?php while ($u = mysqli_fetch_assoc($users)): ?>
+            <option value="<?= $u['id']; ?>" <?= ($u['id'] == $user_id) ? "selected" : "" ?>>
+                <?= htmlspecialchars($u['name']); ?> (<?= htmlspecialchars($u['email']); ?>)
             </option>
         <?php endwhile; ?>
     </select>
-
     <button type="submit">Load User</button>
 </form>
-
 <hr>
+<?php endif; ?>
 
-<?php
-// SHOW USER DETAILS FOR UPDATE
-if(isset($_GET["uid"])):
-
-    $uid = $_GET["uid"];
-    $data = mysqli_query($db, "SELECT * FROM users WHERE id='$uid'");
-    $user = mysqli_fetch_assoc($data);
-?>
-
+<!-- UPDATE FORM -->
 <form method="POST">
 
-    <input type="hidden" name="id" value="<?= $user['id']; ?>">
-
     <label>Name:</label><br>
-    <input type="text" name="name" value="<?= $user['name']; ?>" required><br><br>
+    <input type="text" name="name" value="<?= htmlspecialchars($user['name']); ?>" required><br><br>
 
-    <label>Role:</label><br>
-    <select name="role" required>
-        <option value="user"  <?= ($user['role']=="user")  ? "selected" : "" ?>>User</option>
-        <option value="admin" <?= ($user['role']=="admin") ? "selected" : "" ?>>Admin</option>
-    </select><br><br>
+    <?php if ($is_admin): ?>
+        <label>Role:</label><br>
+        <select name="role">
+            <option value="user"  <?= ($user['role'] === "user")  ? "selected" : "" ?>>User</option>
+            <option value="admin" <?= ($user['role'] === "admin") ? "selected" : "" ?>>Admin</option>
+        </select><br><br>
 
-    <label>Status:</label><br>
-    <select name="status" required>
-        <option value="pending"  <?= ($user['status']=="pending")  ? "selected" : "" ?>>Pending</option>
-        <option value="approved" <?= ($user['status']=="approved") ? "selected" : "" ?>>Approved</option>
-        <option value="denied"   <?= ($user['status']=="denied")   ? "selected" : "" ?>>Denied</option>
-    </select><br><br>
+        <label>Status:</label><br>
+        <select name="status">
+            <option value="pending"  <?= ($user['status'] === "pending")  ? "selected" : "" ?>>Pending</option>
+            <option value="approved" <?= ($user['status'] === "approved") ? "selected" : "" ?>>Approved</option>
+            <option value="denied"   <?= ($user['status'] === "denied")   ? "selected" : "" ?>>Denied</option>
+        </select><br><br>
+    <?php endif; ?>
 
-    <button type="submit">Update User</button>
+    <button type="submit">Save Changes</button>
 </form>
-
-<?php endif; ?>
 
 </body>
 </html>

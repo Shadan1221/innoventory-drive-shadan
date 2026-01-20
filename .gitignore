@@ -1,0 +1,40 @@
+# VS Code
+.vscode/
+*.code-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+
+# Database config (if sensitive)
+# config.php
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+
+# User data
+user/
+AppData/
+*.lock
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+

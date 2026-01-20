@@ -1,0 +1,56 @@
+<?php
+require_once "../../config.php";
+
+/* ---------- Fetch approved users without home path ---------- */
+$stmt = $conn->prepare("SELECT id, email FROM users WHERE status='approved' AND (user_home_path IS NULL OR user_home_path='')");
+$stmt->execute();
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Base directory where user folders will be created
+$basePath = "C:\\xampp\\htdocs\\innoventory\\files"; // final root folder
+
+// Function to generate UUID
+function generate_uuid() {
+    return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+        mt_rand(0, 0xffff),
+        mt_rand(0, 0x0fff) | 0x4000,
+        mt_rand(0, 0x3fff) | 0x8000,
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+    );
+}
+
+foreach($users as $user){
+    $email = $user['email'];
+    
+    // 1️⃣ Extract modifiedEmail: part before @, remove special chars
+    $parts = explode("@", $email);
+    $modifiedEmail = preg_replace("/[^a-zA-Z0-9]/", "", $parts[0]);
+
+    // 2️⃣ Generate UUID
+    $uuid = generate_uuid();
+
+    // 3️⃣ Create user folder path
+    $userFolder = $basePath . "\\{$modifiedEmail}_{$uuid}\\files";
+
+    // 4️⃣ Create directories recursively
+    if(!is_dir($userFolder)){
+        mkdir($userFolder, 0777, true);
+    }
+
+    // 5️⃣ Create example files
+    file_put_contents($userFolder . "\\a.txt", "This is file A for {$email}");
+    file_put_contents($userFolder . "\\b.txt", "This is file B for {$email}");
+
+    // 6️⃣ Prepare path for DB (use relative path for website)
+    $userHomePath = "/innoventory/files/{$modifiedEmail}_{$uuid}/files";
+
+    // 7️⃣ Update user_home_path in database
+    $updateStmt = $conn->prepare("UPDATE users SET user_home_path=? WHERE id=?");
+    $updateStmt->execute([$userHomePath, $user['id']]);
+
+    echo "User {$email} folder created at {$userHomePath}<br>";
+}
+
+echo "<br>All folders created and database updated successfully!";
+?>
