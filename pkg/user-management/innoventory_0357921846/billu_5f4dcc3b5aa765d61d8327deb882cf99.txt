@@ -1,0 +1,56 @@
+<?php
+require_once "../../config.php"; // DB connection
+
+function createUserHome($email) {
+
+    // 1. Take ONLY first name (before @ and before dot)
+    $firstPart = strtolower(strstr($email, '@', true)); // arhsiya.singh
+    $firstName = explode('.', $firstPart)[0];           // arhsiya
+
+    // 2. Base directory
+    $baseDir = "C:/xampp/htdocs/innoventory/files";
+
+    // 3. Find existing folders for this user
+    $existing = glob($baseDir . "/{$firstName}_*");
+
+    // 4. Next incremental number
+    $nextNumber = count($existing) + 1;
+
+    // 5. Pad to 10 digits
+    $id = str_pad($nextNumber, 10, '0', STR_PAD_LEFT);
+
+    // 6. Final clean path
+    $folderPath = "{$baseDir}/{$firstName}_{$id}/files";
+
+    // 7. Create directory
+    if (!is_dir($folderPath)) {
+        mkdir($folderPath, 0777, true);
+    }
+
+    // 8. Create example file
+    $filePath = $folderPath . "/a.txt";
+    if (!file_exists($filePath)) {
+        file_put_contents($filePath, "File for {$firstName}");
+    }
+
+    return $folderPath;
+}
+
+/* ---------- APPLY TO USERS ---------- */
+$stmt = $db->prepare("SELECT id, email FROM users");
+$stmt->execute();
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($users as $user) {
+
+    $path = createUserHome($user['email']);
+
+    $update = $db->prepare("UPDATE users SET user_home_path=? WHERE id=?");
+    $update->execute([$path, $user['id']]);
+
+    echo "User {$user['id']} → {$path}<br>";
+}
+
+echo "<br>✅ All folders created correctly!";
+?>
+

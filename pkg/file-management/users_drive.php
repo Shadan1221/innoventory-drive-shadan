@@ -118,7 +118,7 @@ if ($viewUserId > 0) {
                 <span>Browse user files</span>
             </div>
 
-            <div class="drive-layout">
+            <div class="drive-layout with-sidebar">
 
                 <!-- LEFT USERS -->
                 <aside class="drive-users">
@@ -177,6 +177,16 @@ if ($viewUserId > 0) {
                                             <button class="kebab-item"
                                                     onclick="toggleStar('<?= $safeFile ?>', <?= $isStarred ? 'true' : 'false' ?>, <?= $viewUserId ?>)">
                                                 <?= $isStarred ? '⭐ Remove Star' : '⭐ Star File' ?>
+                                            </button>
+                                            
+                                            <button class="kebab-item"
+                                                    onclick="previewFile('<?= $safeFile ?>', <?= $viewUserId ?>)">
+                                                👁️ Preview
+                                            </button>
+                                            
+                                            <button class="kebab-item"
+                                                    onclick="renameFile('<?= $safeFile ?>', <?= $viewUserId ?>)">
+                                                ✏️ Rename
                                             </button>
 
                                             <button class="kebab-item delete"
@@ -247,6 +257,44 @@ async function toggleStar(file, isStarred, ownerId) {
     }
 }
 
+async function previewFile(file, userId) {
+    try {
+        const res = await fetch(`preview.php?file=${encodeURIComponent(file)}&user_id=${userId}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            alert(data.message || 'Preview failed');
+            return;
+        }
+
+        showPreviewModal(data);
+    } catch (err) {
+        console.error(err);
+        alert('Preview request failed');
+    }
+}
+
+async function renameFile(oldName, userId) {
+    const newName = prompt('Rename file to:', oldName);
+    if (!newName || newName === oldName) return;
+
+    const formData = new FormData();
+    formData.append('old_name', oldName);
+    formData.append('new_name', newName);
+    formData.append('user_id', userId);
+
+    try {
+        const res = await fetch('rename_file.php', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.success) location.reload();
+        else alert(data.message || 'Rename failed');
+    } catch (err) {
+        console.error(err);
+        alert('Rename request failed');
+    }
+}
+
 async function deleteFile(file, ownerId) {
     if (!confirm("Delete file: " + file + " ?")) return;
 
@@ -274,7 +322,99 @@ async function deleteFile(file, ownerId) {
         alert('Request failed: ' + err.message);
     }
 }
+
+function showPreviewModal(fileData) {
+    const modal = document.getElementById('previewModal');
+    const title = document.getElementById('previewTitle');
+    const body = document.getElementById('previewBody');
+    const info = document.getElementById('previewInfo');
+    const downloadLink = document.getElementById('previewDownload');
+
+    title.textContent = fileData.filename;
+    info.textContent = `${fileData.sizeFormatted} • ${fileData.extension.toUpperCase()}`;
+    downloadLink.href = fileData.previewUrl;
+    downloadLink.download = fileData.filename;
+
+    body.innerHTML = '';
+
+    if (!fileData.canPreview) {
+        body.innerHTML = `
+            <div class="preview-not-supported">
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" /></svg>
+                <div style="margin-top: 12px; font-size: 15px; font-weight: 500;">Preview not available</div>
+                <div style="margin-top: 4px;">Download the file to view it</div>
+            </div>
+        `;
+    } else if (fileData.type === 'image') {
+        const img = document.createElement('img');
+        img.src = fileData.previewUrl;
+        img.alt = fileData.filename;
+        body.appendChild(img);
+    } else if (fileData.type === 'video') {
+        const video = document.createElement('video');
+        video.controls = true;
+        video.src = fileData.previewUrl;
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '70vh';
+        body.appendChild(video);
+    } else if (fileData.type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = fileData.previewUrl;
+        audio.style.width = '100%';
+        body.appendChild(audio);
+    } else if (fileData.type === 'pdf') {
+        const iframe = document.createElement('iframe');
+        iframe.src = fileData.previewUrl;
+        body.appendChild(iframe);
+    } else if (fileData.type === 'text') {
+        const pre = document.createElement('div');
+        pre.className = 'preview-text-content';
+        pre.textContent = fileData.content;
+        body.appendChild(pre);
+    }
+
+    modal.classList.add('show');
+}
+
+function closePreviewModal() {
+    const modal = document.getElementById('previewModal');
+    modal.classList.remove('show');
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePreviewModal();
+    }
+});
+
+// Close modal on background click
+document.getElementById('previewModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePreviewModal();
+    }
+});
 </script>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="preview-modal">
+    <div class="preview-content">
+        <div class="preview-header">
+            <h3 class="preview-title" id="previewTitle">File Preview</h3>
+            <button class="preview-close" onclick="closePreviewModal()">×</button>
+        </div>
+        <div class="preview-body" id="previewBody">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+        <div class="preview-footer">
+            <span class="preview-info" id="previewInfo"></span>
+            <div class="preview-actions">
+                <a id="previewDownload" class="preview-btn-download" download>Download</a>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

@@ -110,7 +110,7 @@ $stmt->close();
                 </span>
             </div>
 
-            <div class="drive-layout">
+            <div class="drive-layout <?= $role === 'admin' ? 'with-sidebar' : '' ?>">
 
                 <?php if ($role === 'admin'): ?>
                     <!-- USERS LIST -->

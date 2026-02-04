@@ -24,15 +24,25 @@ $approved = mysqli_query($db, "SELECT * FROM users WHERE status='approved' ORDER
     <title>Users - Innoventory</title>
     <link rel="stylesheet" href="../../css/main.css">
     <style>
-        body { background: var(--bg); padding: 20px; }
-        .dashboard-container { max-width: 1700px; margin: 0 auto; background: var(--panel); padding: 30px; border-radius: 8px; box-shadow: var(--soft-shadow); }
+        body { background: var(--bg); margin: 0; margin-left: 280px; width: calc(100% - 280px); }
+        .dashboard-container { max-width: 100%; margin: 0; background: var(--panel); padding: 30px; border-radius: 0; box-shadow: none; }
         h1 { color: var(--text); margin-bottom: 10px; }
         .subtitle { color: var(--muted); margin-bottom: 30px; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        table th, table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        table th { background: var(--table-head-bg); font-weight: 600; color: var(--text); }
-        .role-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; color: var(--text); }
+        table th, table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        table th { background: #f3f4f6; font-weight: 600; color: var(--text); }
+        .role-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
         .no-requests { text-align: center; padding: 40px; color: var(--muted); }
+        .message { padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid; }
+        .message.success { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+        .message.error { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .action-links { display: flex; gap: 12px; }
+        .action-links a { padding: 6px 12px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+        .action-links a:hover { background: var(--accent); color: white; }
+        .action-links a.deny:hover { background: #ef4444; }
+        [data-theme="dark"] table th { background: rgba(255, 255, 255, 0.05); }
+        [data-theme="dark"] .message.success { background: rgba(34, 197, 94, 0.1); border-color: #4ade80; color: #4ade80; }
+        [data-theme="dark"] .message.error { background: rgba(239, 68, 68, 0.1); border-color: #f87171; color: #f87171; }
     </style>
 </head>
 <body>

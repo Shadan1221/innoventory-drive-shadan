@@ -1,17 +1,26 @@
 <?php
 // common/header.php
+// Only show header with search bar if user is logged in
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$isLoggedIn = isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true;
 ?>
 <header class="site-header">
   <!-- Left empty (future logo/crumbs if needed) -->
   <div class="header-left"></div>
 
   <!-- Center Search -->
+  <?php if ($isLoggedIn): ?>
   <div class="header-center">
-    <form class="global-search" action="/innoventory-drive/pkg/user-management/search.php" method="GET">
-      <input type="text" name="q" placeholder="Search by name/email/status..." autocomplete="off">
+    <form class="global-search" action="/innoventory/innoventory/pkg/user-management/search.php" method="GET">
+      <input type="text" name="q" placeholder="Search files in My Drive..." autocomplete="off">
       <button type="submit">Search</button>
     </form>
   </div>
+  <?php else: ?>
+  <div class="header-center"></div>
+  <?php endif; ?>
 
   <!-- Right controls -->
   <div class="header-right">
@@ -21,30 +30,39 @@
 
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("themeToggle");
-  if (!btn) return;
-
-  function apply(theme) {
+// Theme toggle functionality - works on all pages
+(function() {
+  function applyTheme(theme) {
     if (theme === "dark") {
       document.documentElement.setAttribute("data-theme", "dark");
-      btn.textContent = "☀️";
     } else {
       document.documentElement.removeAttribute("data-theme");
-      btn.textContent = "🌙";
+    }
+    
+    // Update button if it exists
+    const btn = document.getElementById("themeToggle");
+    if (btn) {
+      btn.textContent = theme === "dark" ? "☀️" : "🌙";
     }
   }
 
-  // load saved theme
+  // Load and apply saved theme immediately (before DOMContentLoaded)
   const saved = localStorage.getItem("innoventory-theme") || "light";
-  apply(saved);
+  applyTheme(saved);
 
-  btn.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-    const next = current === "dark" ? "light" : "dark";
-    localStorage.setItem("innoventory-theme", next);
-    apply(next);
+  // Set up event listeners after DOM loads
+  document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("themeToggle");
+    
+    if (btn) {
+      btn.addEventListener("click", function() {
+        const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        const next = current === "dark" ? "light" : "dark";
+        localStorage.setItem("innoventory-theme", next);
+        applyTheme(next);
+      });
+    }
   });
-});
+})();
 </script>
 

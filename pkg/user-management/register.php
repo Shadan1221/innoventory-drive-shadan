@@ -72,7 +72,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="auth-container">
         <div class="form-logo">
-            <img src="../logo/logo.png" alt="Innoventory logo">
+            <img id="themeLogoRegister" src="../logo/logo (light).png" alt="Innoventory logo" data-light="../logo/logo (light).png" data-dark="../logo/logo (dark).png">
         </div>
         <h1 style="text-align:center; margin-top:0;">Request Access</h1>
         <?php if($msg) echo "<div class='message success'>".htmlspecialchars($msg)."</div>"; ?>

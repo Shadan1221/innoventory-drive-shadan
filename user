@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Innoventory Users</title>
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f5f6fa;
+        display: flex;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+        width: 230px;
+        background: #ffffff;
+        height: 100vh;
+        padding: 25px 20px;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .new-btn {
+        background: #e6e6e6;
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 15px;
+        margin-bottom: 25px;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .sidebar a {
+        display: block;
+        padding: 10px 0;
+        color: #222;
+        text-decoration: none;
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .sidebar a.active {
+        font-weight: bold;
+    }
+
+    /* MAIN CONTENT */
+    .content {
+        flex: 1;
+        padding: 25px 40px;
+    }
+
+    .search-bar input {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* CARD */
+    .card {
+        background: #ffffff;
+        margin-top: 30px;
+        padding: 35px;
+        border-radius: 20px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+    }
+
+    .title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 35px;
+    }
+
+    /* TABLE LAYOUT */
+    .table-header {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        font-weight: bold;
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .table-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 25px;
+        margin-bottom: 20px;
+    }
+
+    /* Skeleton styles */
+    .skeleton {
+        height: 32px;
+        background: #dcdcdc;
+        border-radius: 12px;
+    }
+
+    .name-box {
+        padding: 6px 0;
+        background: #cfcfcf;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="logo">
+        <img src="logo.png" width="45" />
+        <span><strong>INNOVENTORY</strong></span>
+    </div>
+
+    <div class="new-btn">+ New</div>
+
+    <a href="#">Dashboard</a>
+    <a href="#">My Drive</a>
+    <a href="#">Shared</a>
+    <a href="#" class="active">Users</a>
+    <a href="#">Starred</a>
+    <a href="#">Bin</a>
+    <a href="#">Storage</a>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="content">
+    <div class="search-bar">
+        <input type="text" placeholder="Search in Drive">
+    </div>
+
+    <div class="card">
+        <div class="title">Welcome to Innoventory’s Drive</div>
+
+        <!-- TABLE HEADER -->
+        <div class="table-header">
+            <div>Name</div>
+            <div>Email</div>
+            <div>Role</div>
+            <div>Actions</div>
+            <div>Status</div>
+        </div>
+
+        <!-- TABLE CONTENT -->
+        <div class="table-row">
+            <!-- Name Column -->
+            <div>
+                <div class="name-box">Samson</div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+
+            <!-- Email Column -->
+            <div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+
+            <!-- Role Column -->
+            <div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+
+            <!-- Actions Column -->
+            <div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+
+            <!-- Status Column -->
+            <div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

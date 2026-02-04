@@ -31,15 +31,17 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
     <style>
         body {
             background: var(--bg);
-            padding: 18px;
+            margin: 0;
+            margin-left: 280px;
+            width: calc(100% - 280px);
         }
         .dashboard-container {
-            max-width: 1700px;
-            margin: 0 auto;
+            max-width: 100%;
+            margin: 0;
             background: var(--panel);
             padding: 30px;
-            border-radius: 8px;
-            box-shadow: var(--soft-shadow);
+            border-radius: 0;
+            box-shadow: none;
         }
         h1 {
             color: var(--text);
@@ -69,14 +71,15 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            color: var(--text);
         }
         table th, table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border);
         }
         table th {
-            background: var(--table-head-bg);
+            background: #f3f4f6;
             font-weight: 600;
             color: var(--text);
         }

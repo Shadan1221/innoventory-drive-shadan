@@ -32,11 +32,15 @@ $currentUserId = (int) ($_SESSION['user_id'] ?? ($_SESSION['id'] ?? 0));
 $role = $_SESSION['role'] ?? '';
 
 /* 2) Data */
-$filename = basename($_POST['filename'] ?? '');
+$filename = $_POST['filename'] ?? '';
 if ($filename === '') {
     echo json_encode(['success' => false, 'message' => 'Filename missing']);
     exit;
 }
+
+// Sanitize path to prevent directory traversal attacks
+$filename = str_replace(['..', '\\'], ['', '/'], $filename);
+$filename = ltrim($filename, '/');
 
 /* 3) Determine target */
 $targetUserId = $currentUserId;
@@ -53,14 +57,18 @@ if ($targetUserId <= 0) {
 /* 4) Paths */
 $sourcePath = "../../uploads/user_" . $targetUserId . "/" . $filename;
 $trashDir   = "../../uploads/bin/user_" . $targetUserId;
+
+// If file is in a folder, preserve the folder structure in trash
 $trashPath  = $trashDir . "/" . $filename;
+$trashFileDir = dirname($trashPath);
 
 if (!file_exists($sourcePath)) {
-    echo json_encode(['success' => false, 'message' => 'File not found']);
+    echo json_encode(['success' => false, 'message' => 'File not found: ' . $filename]);
     exit;
 }
 
-if (!is_dir($trashDir) && !mkdir($trashDir, 0775, true)) {
+// Create trash directory structure if needed
+if (!is_dir($trashFileDir) && !mkdir($trashFileDir, 0775, true)) {
     echo json_encode(['success' => false, 'message' => 'Cannot create trash directory']);
     exit;
 }

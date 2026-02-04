@@ -12,7 +12,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 $role         = $_SESSION['role'] ?? 'user';
 $currentUserId = (int) ($_SESSION['user_id'] ?? ($_SESSION['id'] ?? 0));
 $action       = $_POST['action'] ?? '';
-$filename     = basename($_POST['filename'] ?? '');
+$filename     = str_replace(['..', '\\'], ['', '/'], $_POST['filename'] ?? '');
 $targetUserId = $currentUserId;
 
 if ($role === 'admin' && isset($_POST['user_id'])) {

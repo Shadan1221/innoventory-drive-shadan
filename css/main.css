@@ -20,6 +20,7 @@ body {
   font-family: "Poppins", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ================= LAYOUT ================= */
@@ -27,6 +28,7 @@ body {
   display: grid;
   grid-template-columns: 280px 1fr;
   min-height: 100vh;
+  margin-left: 0;
 }
 
 /* ================= SIDEBAR ================= */
@@ -200,6 +202,7 @@ body {
 /* ================= MAIN ================= */
 .app-grid main {
   padding: 40px;
+  margin-left: 0;
 }
 
 /* Dashboard card */
@@ -521,6 +524,13 @@ body {
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
+  .sidebar-v2 {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow-y: visible;
+  }
   .site-header {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -543,6 +553,11 @@ body {
   align-items: center;
 
   pointer-events: none;
+}
+
+/* Header on auth pages (no sidebar) */
+.auth-page .site-header {
+  left: 18px;
 }
 
 .site-header * {
@@ -739,13 +754,18 @@ body {
 /* ================= SIDEBAR V2 (Modern) ================= */
 
 .sidebar-v2 {
+  position: fixed;
+  left: 0;
+  top: 0;
   width: 280px;
+  height: 100vh;
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 20px 18px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow-y: auto;
+  z-index: 99;
 }
 
 /* Logo */
@@ -969,5 +989,132 @@ body {
 [data-theme="dark"] .menu li.active a,
 [data-theme="dark"] .sb-link.active {
   color: var(--accent);
+}
+
+/* Theme toggle button in header */
+.theme-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.theme-btn:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* Standalone theme toggle for auth pages */
+.theme-btn-standalone {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 22px;
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+}
+
+.theme-btn-standalone:hover {
+  background: var(--accent-soft);
+  transform: scale(1.05);
+}
+
+/* Dark theme for auth pages */
+[data-theme="dark"] .auth-container {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group input[type="range"] {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .form-group label {
+  color: var(--text);
+}
+
+[data-theme="dark"] .message {
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .message.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .message.error,
+[data-theme="dark"] .error-message {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+/* Dark theme for dashboard elements */
+[data-theme="dark"] .dashboard-card {
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="dark"] .dashboard-container {
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="dark"] table {
+  color: var(--text);
+}
+
+[data-theme="dark"] th,
+[data-theme="dark"] td {
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-ghost,
+[data-theme="dark"] button[type="submit"] {
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background: var(--accent-soft);
+}
+
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .global-search input {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .site-header {
+  background: var(--panel);
+  border-color: var(--border);
 }
 

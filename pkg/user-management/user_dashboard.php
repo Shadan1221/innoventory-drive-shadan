@@ -33,6 +33,8 @@ if ($user["status"] !== "approved") {
 
 <body>
 
+<?php include '../../common/header.php'; ?>
+
 <div class="app-grid">
 
     <!-- SIDEBAR -->

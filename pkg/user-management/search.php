@@ -8,34 +8,46 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     exit;
 }
 
-// OPTIONAL: Only admin can search users (recommended)
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== "admin") {
-    header("Location: ../../index.php");
-    exit;
-}
+$user_id = (int) $_SESSION['user_id'];
+$role = $_SESSION['role'] ?? 'user';
 
 $q = trim($_GET["q"] ?? "");
 $results = [];
 
 if ($q !== "") {
-    $search = "%" . $q . "%";
-
-    // ✅ FIXED QUERY: removed `location`
-    $stmt = $db->prepare("
-        SELECT id, name, email, role, status
-        FROM users
-        WHERE name LIKE ? OR email LIKE ? OR role LIKE ? OR status LIKE ?
-        ORDER BY role, name
-    ");
-    $stmt->bind_param("ssss", $search, $search, $search, $search);
-    $stmt->execute();
-    $res = $stmt->get_result();
-
-    while ($row = $res->fetch_assoc()) {
-        $results[] = $row;
+    // Get the upload directory for the logged-in user
+    $uploadDir = "../../uploads/user_" . $user_id;
+    
+    if (is_dir($uploadDir)) {
+        // Get all files from the user's directory
+        $allFiles = array_diff(scandir($uploadDir), ['.', '..']);
+        
+        // Filter files that match the search query
+        foreach ($allFiles as $filename) {
+            if (stripos($filename, $q) !== false) {
+                $filePath = $uploadDir . "/" . $filename;
+                $results[] = [
+                    'filename' => $filename,
+                    'size' => filesize($filePath),
+                    'modified' => filemtime($filePath),
+                    'path' => $filePath
+                ];
+            }
+        }
     }
+}
 
-    $stmt->close();
+// Helper function to format file size
+function formatFileSize($bytes) {
+    if ($bytes >= 1073741824) {
+        return number_format($bytes / 1073741824, 2) . ' GB';
+    } elseif ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2) . ' MB';
+    } elseif ($bytes >= 1024) {
+        return number_format($bytes / 1024, 2) . ' KB';
+    } else {
+        return $bytes . ' bytes';
+    }
 }
 ?>
 
@@ -44,7 +56,7 @@ if ($q !== "") {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Search - Innoventory</title>
+    <title>Search Files - Innoventory</title>
     <link rel="stylesheet" href="../../css/main.css" />
 </head>
 
@@ -62,7 +74,7 @@ if ($q !== "") {
         <div class="dashboard-card">
 
             <div class="dashboard-header">
-                <h1>Search</h1>
+                <h1>Search Files</h1>
                 <span>Results for: <b><?= htmlspecialchars($q) ?></b></span>
             </div>
 
@@ -70,7 +82,7 @@ if ($q !== "") {
             <form method="GET" action="search.php" style="margin-bottom: 20px;">
                 <div class="global-search">
                     <input type="text" name="q"
-                           placeholder="Search by name/email/role/status..."
+                           placeholder="Search files in My Drive..."
                            value="<?= htmlspecialchars($q) ?>" />
                     <button type="submit">Search</button>
                 </div>
@@ -78,12 +90,12 @@ if ($q !== "") {
 
             <?php if ($q === ""): ?>
                 <div class="empty-state">
-                    Type something in the search box to find users.
+                    Type something in the search box to find files.
                 </div>
 
             <?php elseif (empty($results)): ?>
                 <div class="empty-state">
-                    No results found.
+                    No files found matching "<?= htmlspecialchars($q) ?>".
                 </div>
 
             <?php else: ?>
@@ -91,38 +103,34 @@ if ($q !== "") {
                     <table style="width:100%; border-collapse:collapse;">
                         <thead>
                         <tr>
-                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Name</th>
-                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Email</th>
-                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Role</th>
-                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Status</th>
+                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Filename</th>
+                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Size</th>
+                            <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Last Modified</th>
                             <th style="text-align:left; padding:12px; border-bottom:1px solid var(--border);">Action</th>
                         </tr>
                         </thead>
 
                         <tbody>
-                        <?php foreach ($results as $u): ?>
+                        <?php foreach ($results as $file): ?>
                             <tr>
                                 <td style="padding:12px; border-bottom:1px solid var(--border);">
-                                    <?= htmlspecialchars($u["name"]) ?>
+                                    <?= htmlspecialchars($file["filename"]) ?>
                                 </td>
                                 <td style="padding:12px; border-bottom:1px solid var(--border);">
-                                    <?= htmlspecialchars($u["email"]) ?>
+                                    <?= formatFileSize($file["size"]) ?>
                                 </td>
                                 <td style="padding:12px; border-bottom:1px solid var(--border);">
-                                    <?= htmlspecialchars(ucfirst($u["role"])) ?>
+                                    <?= date('Y-m-d H:i:s', $file["modified"]) ?>
                                 </td>
                                 <td style="padding:12px; border-bottom:1px solid var(--border);">
-                                    <?= htmlspecialchars(ucfirst($u["status"])) ?>
-                                </td>
-                                <td style="padding:12px; border-bottom:1px solid var(--border);">
-                                    <?php if ($u["role"] === "user"): ?>
-                                        <a href="../../pkg/file-management/users_drive.php?user_id=<?= (int)$u["id"] ?>"
-                                           style="color:var(--accent); text-decoration:none; font-weight:600;">
-                                            View Drive
-                                        </a>
-                                    <?php else: ?>
-                                        <span style="color:var(--muted);">—</span>
-                                    <?php endif; ?>
+                                    <a href="../file-management/download.php?file=<?= urlencode($file['filename']) ?>"
+                                       style="color:var(--accent); text-decoration:none; font-weight:600; margin-right: 15px;">
+                                        Download
+                                    </a>
+                                    <a href="../file-management/my_drive.php"
+                                       style="color:var(--accent); text-decoration:none; font-weight:600;">
+                                        View in Drive
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -103,7 +103,7 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 <div class="auth-container">
 
     <div class="form-logo">
-        <img src="logo/logo.png" alt="Innoventory logo">
+        <img id="themeLogoAuth" src="logo/logo (light).png" alt="Innoventory logo" data-light="logo/logo (light).png" data-dark="logo/logo (dark).png">
     </div>
 
     <h1 style="text-align:center;">Sign in</h1>

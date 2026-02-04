@@ -13,7 +13,7 @@ $starredBy = (int) $_SESSION['user_id'];
 $role = $_SESSION['role'] ?? 'user';
 
 $action   = $_POST['action'] ?? '';
-$filename = basename($_POST['filename'] ?? '');
+$filename = str_replace(['..', '\\'], ['', '/'], $_POST['filename'] ?? '');
 
 if ($filename === '' || ($action !== 'star' && $action !== 'unstar')) {
     echo json_encode(['success' => false, 'message' => 'Missing parameters']);
@@ -21,14 +21,19 @@ if ($filename === '' || ($action !== 'star' && $action !== 'unstar')) {
 }
 
 /*
- owner_id:
+ owner_id / user_id:
  - user: always their own files
- - admin: can pass owner_id in POST (from Users Drive)
+ - admin: can pass owner_id or user_id in POST (from Users Drive or folder views)
 */
 $ownerId = $starredBy;
 
 if ($role === 'admin' && isset($_POST['owner_id'])) {
     $ownerId = (int) $_POST['owner_id'];
+} elseif ($role === 'admin' && isset($_POST['user_id'])) {
+    $ownerId = (int) $_POST['user_id'];
+} elseif (isset($_POST['user_id'])) {
+    // For regular users viewing their own files in folder view
+    $ownerId = (int) $_POST['user_id'];
 }
 
 if ($ownerId <= 0) {
