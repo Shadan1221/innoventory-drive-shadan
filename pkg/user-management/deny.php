@@ -16,9 +16,11 @@ if (isset($_GET["id"])) {
     $query->bind_param("i", $id);
     
     if ($query->execute()) {
-        header("Location: admin_dashboard.php?msg=User denied successfully");
+        $redirect = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'users.php') !== false ? 'users.php' : 'admin_dashboard.php';
+        header("Location: {$redirect}?msg=User denied successfully");
     } else {
-        header("Location: admin_dashboard.php?msg=Error denying user");
+        $redirect = isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'users.php') !== false ? 'users.php' : 'admin_dashboard.php';
+        header("Location: {$redirect}?msg=Error denying user");
     }
     
     $query->close();

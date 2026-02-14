@@ -25,8 +25,13 @@ if (empty($folderName)) {
     exit;
 }
 
+// Sanitize folder path to prevent traversal but allow nested folders
+$folderName = str_replace(['..', '\\'], ['', '/'], $folderName);
+$folderName = ltrim($folderName, '/');
+$folderName = preg_replace('#/+#', '/', $folderName);
+
 $baseDir = "../../uploads/user_" . $viewUserId;
-$folderPath = $baseDir . "/" . basename($folderName);
+$folderPath = $baseDir . "/" . $folderName;
 
 // Verify folder exists
 if (!is_dir($folderPath)) {
@@ -84,8 +89,18 @@ $stmt->close();
 
             <div class="dashboard-header">
                 <div>
-                    <a href="<?= $role === 'admin' ? 'admin_drive.php' : 'my_drive.php' ?>" style="text-decoration: none; color: var(--accent);">← Back</a>
-                    <h1 style="margin-top: 10px;">📁 <?= htmlspecialchars($folderName) ?></h1>
+                    <?php
+                        $hasParent = strpos($folderName, '/') !== false;
+                        $parentFolder = $hasParent ? dirname($folderName) : '';
+                        $backHref = $hasParent
+                            ? 'folder_view.php?folder=' . urlencode($parentFolder) . '&user_id=' . $viewUserId
+                            : ($role === 'admin' ? 'admin_drive.php' : 'my_drive.php');
+                    ?>
+                    <a href="<?= $backHref ?>" style="text-decoration: none; color: var(--accent);">← Back</a>
+                    <h1 style="margin-top: 10px;">
+                        <svg class="ico-folder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align: -6px; margin-right: 6px; width: 28px; height: 28px;"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2Z"/></svg>
+                        <?= htmlspecialchars($folderName) ?>
+                    </h1>
                 </div>
                 <span><?= count($files) ?> file(s), <?= count($subfolders) ?> folder(s)</span>
             </div>
@@ -109,13 +124,18 @@ $stmt->close();
                         <?php foreach ($subfolders as $subfolder): ?>
                             <?php
                             $safeSubfolder = htmlspecialchars($subfolder, ENT_QUOTES);
+                            $subfolderPath = $folderName . '/' . $subfolder;
                             ?>
 
                             <div class="file-card">
-                                <div class="file-icon" style="cursor: pointer;">📁</div>
-                                <div class="file-name"><?= htmlspecialchars($subfolder) ?></div>
-                                <a class="file-download" href="javascript:void(0);" style="opacity: 0.5;">
-                                    Subfolder
+                                <div class="file-icon" style="cursor: pointer;" onclick="window.location.href='folder_view.php?folder=<?= urlencode($subfolderPath) ?>&user_id=<?= $viewUserId ?>'">
+                                    <svg class="ico-folder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2Z"/></svg>
+                                </div>
+                                <div class="file-name" style="cursor: pointer;" onclick="window.location.href='folder_view.php?folder=<?= urlencode($subfolderPath) ?>&user_id=<?= $viewUserId ?>'">
+                                    <?= htmlspecialchars($subfolder) ?>
+                                </div>
+                                <a class="file-download" href="folder_view.php?folder=<?= urlencode($subfolderPath) ?>&user_id=<?= $viewUserId ?>">
+                                    Open
                                 </a>
                             </div>
 
@@ -159,7 +179,12 @@ $stmt->close();
                                     </button>
                                 </div>
 
-                                <div class="file-icon"><?= $isStarred ? "⭐" : "📄" ?></div>
+                                <div class="file-icon">
+                                    <?= $isStarred
+                                        ? '<svg class="ico-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z"/></svg>'
+                                        : '<svg class="ico-file" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 1.5V7h3.5L14 3.5Z"/></svg>'
+                                    ?>
+                                </div>
                                 <div class="file-name"><?= htmlspecialchars($file) ?></div>
 
                                 <a class="file-download"
@@ -336,7 +361,7 @@ function createProgressItem(id, filename, size) {
     
     div.innerHTML = `
         <div class="upload-file-info">
-            <div class="upload-file-icon">📄</div>
+            <div class="upload-file-icon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 1.5V7h3.5L14 3.5Z"/></svg></div>
             <div class="upload-file-details">
                 <div class="upload-file-name" title="${filename}">${filename}</div>
                 <div class="upload-file-size">${sizeStr}</div>

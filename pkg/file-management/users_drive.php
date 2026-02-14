@@ -195,8 +195,13 @@ if ($viewUserId > 0) {
                                             </button>
                                         </div>
 
-                                        <div class="file-icon"><?= $isStarred ? "⭐" : "📄" ?></div>
-                                        <div class="file-name"><?= htmlspecialchars($file) ?></div>
+                                        <div class="file-icon" onclick="previewFile('<?= $safeFile ?>', <?= $viewUserId ?>)" style="cursor: pointer;">
+                                            <?= $isStarred
+                                                ? '<svg class="ico-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z"/></svg>'
+                                                : '<svg class="ico-file" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 1.5V7h3.5L14 3.5Z"/></svg>'
+                                            ?>
+                                        </div>
+                                        <div class="file-name" onclick="previewFile('<?= $safeFile ?>', <?= $viewUserId ?>)" style="cursor: pointer;"><?= htmlspecialchars($file) ?></div>
 
                                         <a class="file-download"
                                            href="../../pkg/file-management/download.php?user_id=<?= $viewUserId ?>&file=<?= urlencode($file) ?>">
@@ -275,8 +280,13 @@ async function previewFile(file, userId) {
 }
 
 async function renameFile(oldName, userId) {
-    const newName = prompt('Rename file to:', oldName);
-    if (!newName || newName === oldName) return;
+    const newName = await showRenameModal({
+        title: 'Rename file',
+        label: 'New file name',
+        defaultValue: oldName,
+        confirmText: 'Rename'
+    });
+    if (!newName || newName.trim() === '' || newName === oldName) return;
 
     const formData = new FormData();
     formData.append('old_name', oldName);
@@ -296,7 +306,13 @@ async function renameFile(oldName, userId) {
 }
 
 async function deleteFile(file, ownerId) {
-    if (!confirm("Delete file: " + file + " ?")) return;
+    const ok = await showConfirmModal({
+        title: 'Delete file',
+        message: `Delete "${file}"?`,
+        confirmText: 'Delete',
+        danger: true
+    });
+    if (!ok) return;
 
     const formData = new FormData();
     formData.append('filename', file);
@@ -395,7 +411,158 @@ document.getElementById('previewModal')?.addEventListener('click', function(e) {
         closePreviewModal();
     }
 });
+
+function showConfirmModal({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('actionModal');
+        const titleEl = modal.querySelector('[data-action-title]');
+        const messageEl = modal.querySelector('[data-action-message]');
+        const inputEl = modal.querySelector('[data-action-input]');
+        const hintEl = modal.querySelector('[data-action-hint]');
+        const cancelBtn = modal.querySelector('[data-action-cancel]');
+        const confirmBtn = modal.querySelector('[data-action-confirm]');
+        const closeBtn = modal.querySelector('[data-action-close]');
+
+        titleEl.textContent = title || 'Confirm';
+        messageEl.textContent = message || '';
+        inputEl.style.display = 'none';
+        inputEl.value = '';
+        hintEl.style.display = 'none';
+        hintEl.textContent = '';
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = `action-btn ${danger ? 'action-btn-danger' : 'action-btn-primary'}`;
+        confirmBtn.disabled = false;
+        cancelBtn.textContent = cancelText;
+
+        function cleanup(result) {
+            modal.classList.remove('show');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onCancel() {
+            cleanup(false);
+        }
+
+        function onConfirm() {
+            cleanup(true);
+        }
+
+        function onBackdrop(e) {
+            if (e.target === modal) onCancel();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        modal.classList.add('show');
+        confirmBtn.focus();
+    });
+}
+
+function showRenameModal({ title, label, defaultValue = '', confirmText = 'Rename', cancelText = 'Cancel' }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('actionModal');
+        const titleEl = modal.querySelector('[data-action-title]');
+        const messageEl = modal.querySelector('[data-action-message]');
+        const inputEl = modal.querySelector('[data-action-input]');
+        const hintEl = modal.querySelector('[data-action-hint]');
+        const cancelBtn = modal.querySelector('[data-action-cancel]');
+        const confirmBtn = modal.querySelector('[data-action-confirm]');
+        const closeBtn = modal.querySelector('[data-action-close]');
+
+        titleEl.textContent = title || 'Rename';
+        messageEl.textContent = label || 'New name';
+        inputEl.style.display = 'block';
+        inputEl.value = defaultValue;
+        inputEl.setSelectionRange(0, inputEl.value.length);
+        hintEl.style.display = 'block';
+        hintEl.textContent = 'Press Enter to confirm or Escape to cancel.';
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = 'action-btn action-btn-primary';
+        cancelBtn.textContent = cancelText;
+
+        function updateState() {
+            confirmBtn.disabled = inputEl.value.trim() === '';
+        }
+
+        function cleanup(result) {
+            modal.classList.remove('show');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            inputEl.removeEventListener('input', updateState);
+            inputEl.removeEventListener('keydown', onInputKey);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onCancel() {
+            cleanup(null);
+        }
+
+        function onConfirm() {
+            if (inputEl.value.trim() === '') return;
+            cleanup(inputEl.value.trim());
+        }
+
+        function onBackdrop(e) {
+            if (e.target === modal) onCancel();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+        }
+
+        function onInputKey(e) {
+            if (e.key === 'Enter') onConfirm();
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        inputEl.addEventListener('input', updateState);
+        inputEl.addEventListener('keydown', onInputKey);
+        document.addEventListener('keydown', onKey);
+
+        updateState();
+        modal.classList.add('show');
+        inputEl.focus();
+    });
+}
 </script>
+
+<!-- Action Modal -->
+<div id="actionModal" class="action-modal" aria-hidden="true">
+    <div class="action-content" role="dialog" aria-modal="true">
+        <div class="action-header">
+            <h3 class="action-title" data-action-title>Action</h3>
+            <button class="action-close" type="button" data-action-close>×</button>
+        </div>
+        <div class="action-body">
+            <p class="action-message" data-action-message></p>
+            <input class="action-input" data-action-input type="text" autocomplete="off" />
+            <div class="action-hint" data-action-hint></div>
+        </div>
+        <div class="action-footer">
+            <button class="action-btn action-btn-ghost" type="button" data-action-cancel>Cancel</button>
+            <button class="action-btn action-btn-primary" type="button" data-action-confirm>Confirm</button>
+        </div>
+    </div>
+</div>
 
 <!-- Preview Modal -->
 <div id="previewModal" class="preview-modal">

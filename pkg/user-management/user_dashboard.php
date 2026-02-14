@@ -49,6 +49,13 @@ if ($user["status"] !== "approved") {
                 <span>Welcome, <?= htmlspecialchars($_SESSION['name']) ?></span>
             </div>
 
+            <?php if (isset($_SESSION['status_change_message'])): ?>
+                <div class="message success" style="padding: 12px 16px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #22c55e; background: #dcfce7; color: #15803d;">
+                    <?= htmlspecialchars($_SESSION['status_change_message']) ?>
+                </div>
+                <?php unset($_SESSION['status_change_message']); ?>
+            <?php endif; ?>
+
             <?php if (isset($_GET['upload']) && $_GET['upload'] === 'success'): ?>
                 <div class="message success">File uploaded successfully!</div>
             <?php endif; ?>

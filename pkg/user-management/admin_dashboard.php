@@ -20,6 +20,13 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION
 
 // Get all pending requests
 $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY role, name");
+
+// Check for status change message
+$statusChangeMessage = '';
+if (isset($_SESSION['status_change_message'])) {
+    $statusChangeMessage = $_SESSION['status_change_message'];
+    unset($_SESSION['status_change_message']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -32,16 +39,14 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
         body {
             background: var(--bg);
             margin: 0;
-            margin-left: 280px;
-            width: calc(100% - 280px);
         }
         .dashboard-container {
-            max-width: 100%;
-            margin: 0;
+            max-width: 1200px;
+            margin: 0 auto;
             background: var(--panel);
             padding: 30px;
-            border-radius: 0;
-            box-shadow: none;
+            border-radius: 18px;
+            box-shadow: var(--shadow);
         }
         h1 {
             color: var(--text);
@@ -144,8 +149,8 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
             align-items: center;
             gap: 15px;
         }
-            .user-info {
-                color: var(--muted);
+        .user-info {
+            color: var(--muted);
             font-size: 14px;
         }
         .btn-logout {
@@ -161,6 +166,16 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
         .btn-logout:hover {
             background: #b0280f;
         }
+        
+        /* Reason Modal Styles */
+        .reason-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .reason-modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+        .reason-modal-content { position: relative; background: var(--panel); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden; z-index: 10001; }
+        .reason-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+        .reason-modal-header h3 { margin: 0; color: var(--text); font-size: 18px; }
+        .reason-modal-close { background: none; border: none; font-size: 28px; color: var(--muted); cursor: pointer; line-height: 1; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s; }
+        .reason-modal-close:hover { background: var(--accent-soft); color: var(--text); }
+        .reason-modal-body { padding: 24px; color: var(--text); line-height: 1.6; max-height: calc(80vh - 80px); overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; }
     </style>
 </head>
 <body>
@@ -176,6 +191,12 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
                     <span class="user-info">Welcome, <?= htmlspecialchars($_SESSION["name"] ?? "Admin"); ?></span>
                 </div>
             </div>
+
+                <?php if (!empty($statusChangeMessage)): ?>
+                    <div class="message success">
+                        <?= htmlspecialchars($statusChangeMessage) ?>
+                    </div>
+                <?php endif; ?>
 
                 <?php if (isset($_GET["msg"])): ?>
                     <div class="message <?php echo strpos($_GET["msg"], "Error") !== false ? "error" : "success"; ?>">
@@ -193,7 +214,7 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
                             <th>Email</th>
                             <th>Role</th>
                             <th>Requested Storage</th>
-                            <th>Status</th>
+                            <th>Reason</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -215,9 +236,11 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
                                 <?= isset($row['storage_gb']) ? intval($row['storage_gb']) . ' GB' : 'N/A'; ?>
                             </td>
                             <td>
-                                <span class="status-badge pending">
-                                    <?= ucfirst($row["status"]); ?>
-                                </span>
+                                <?php if (isset($row['reason']) && $row['reason'] !== ''): ?>
+                                    <a href="#" class="reason-link" onclick="showReasonModal(event, '<?= htmlspecialchars(addslashes($row['reason']), ENT_QUOTES); ?>')" style="color: var(--accent); text-decoration: underline; cursor: pointer;">View</a>
+                                <?php else: ?>
+                                    <span style="color: var(--muted);">N/A</span>
+                                <?php endif; ?>
                             </td>
                             <td class="action-links">
                                 <a href="approve.php?id=<?= $row['id'] ?>">Approve</a>
@@ -273,7 +296,45 @@ $result = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY
             </div>
         </main>
     </div>
+    
+    <!-- Reason Modal -->
+    <div id="reasonModal" class="reason-modal" style="display: none;">
+        <div class="reason-modal-overlay" onclick="closeReasonModal()"></div>
+        <div class="reason-modal-content">
+            <div class="reason-modal-header">
+                <h3>User's Reason for Access</h3>
+                <button class="reason-modal-close" onclick="closeReasonModal()">&times;</button>
+            </div>
+            <div class="reason-modal-body" id="reasonModalBody">
+                <!-- Reason text will be inserted here -->
+            </div>
+        </div>
+    </div>
+    
     <script>
+        // Reason Modal Functions
+        function showReasonModal(event, reason) {
+            event.preventDefault();
+            const modal = document.getElementById('reasonModal');
+            const modalBody = document.getElementById('reasonModalBody');
+            modalBody.textContent = reason;
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeReasonModal() {
+            const modal = document.getElementById('reasonModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeReasonModal();
+            }
+        });
+        
         // Smooth scroll to anchors and mark menu active
         (function(){
             function setActiveLink(hash) {

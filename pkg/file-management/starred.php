@@ -119,7 +119,7 @@ $stmt->close();
 
                         <a href="starred.php"
                            class="user-link <?= $viewUserId === 0 ? 'active' : '' ?>">
-                            📁 My Starred Files
+                            My Starred Files
                         </a>
 
                         <?php foreach ($usersList as $u): ?>
@@ -149,7 +149,9 @@ $stmt->close();
                         ?>
                         <div class="file-card">
 
-                            <div class="file-icon">⭐</div>
+                            <div class="file-icon">
+                                <svg class="ico-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z"/></svg>
+                            </div>
 
                             <div class="file-name">
                                 <?= htmlspecialchars($file) ?>

@@ -117,7 +117,7 @@ if ($role === 'admin') {
 
                         <a href="my_drive.php"
                            class="user-link <?= $viewUserId === $loggedInUserId ? 'active' : '' ?>">
-                            📁 My Files
+                            My Files
                         </a>
 
                         <?php foreach ($usersList as $u): ?>
@@ -139,6 +139,8 @@ if ($role === 'admin') {
                         </svg>
                         <span><strong>Tip:</strong> Drag and drop files here to upload</span>
                     </div>
+
+                    <div class="drive-status" id="driveStatus" role="status" aria-live="polite"></div>
 
                     <?php if (empty($files) && empty($folders)): ?>
                         <div class="empty-state">No files or folders uploaded.</div>
@@ -184,7 +186,7 @@ if ($role === 'admin') {
 
                                     <div class="file-icon" style="cursor: pointer;" 
                                          onclick="window.location.href='folder_view.php?folder=<?= urlencode($folder) ?>&user_id=<?= $viewUserId ?>'">
-                                        📁
+                                        <svg class="ico-folder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2Z"/></svg>
                                     </div>
                                     <div class="file-name" style="cursor: pointer;"
                                          onclick="window.location.href='folder_view.php?folder=<?= urlencode($folder) ?>&user_id=<?= $viewUserId ?>'">
@@ -236,7 +238,12 @@ if ($role === 'admin') {
                                         </button>
                                     </div>
 
-                                    <div class="file-icon" onclick="previewFile('<?= $safeFile ?>', <?= (int)$viewUserId ?>)" style="cursor: pointer;"><?= $isStarred ? "⭐" : "📄" ?></div>
+                                    <div class="file-icon" onclick="previewFile('<?= $safeFile ?>', <?= (int)$viewUserId ?>)" style="cursor: pointer;">
+                                        <?= $isStarred
+                                            ? '<svg class="ico-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z"/></svg>'
+                                            : '<svg class="ico-file" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 1.5V7h3.5L14 3.5Z"/></svg>'
+                                        ?>
+                                    </div>
                                     <div class="file-name" onclick="previewFile('<?= $safeFile ?>', <?= (int)$viewUserId ?>)" style="cursor: pointer;"><?= htmlspecialchars($file) ?></div>
 
                                     <a class="file-download"
@@ -261,11 +268,40 @@ if ($role === 'admin') {
 <!-- Upload Progress Container -->
 <div id="uploadProgressContainer" class="upload-progress-container"></div>
 
+<!-- Toast Notification Container -->
+<div id="toastContainer" class="toast-container"></div>
+
 <script>
 // ==================== DRAG AND DROP UPLOAD ====================
 const dropZone = document.getElementById('dropZone');
 const uploadProgressContainer = document.getElementById('uploadProgressContainer');
 let uploadQueue = [];
+
+// ==================== STATUS MESSAGE ====================
+function setDriveStatus(message, type = 'info') {
+    const statusEl = document.getElementById('driveStatus');
+    if (!statusEl) return;
+
+    statusEl.textContent = message;
+    statusEl.className = `drive-status drive-status-${type} show`;
+}
+
+function persistDriveStatus(message, type = 'info') {
+    sessionStorage.setItem('driveStatusMessage', message);
+    sessionStorage.setItem('driveStatusType', type);
+}
+
+function restoreDriveStatus() {
+    const message = sessionStorage.getItem('driveStatusMessage');
+    const type = sessionStorage.getItem('driveStatusType') || 'info';
+    if (message) {
+        setDriveStatus(message, type);
+        sessionStorage.removeItem('driveStatusMessage');
+        sessionStorage.removeItem('driveStatusType');
+    }
+}
+
+restoreDriveStatus();
 
 // Prevent default drag behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -349,6 +385,11 @@ async function handleFiles(files) {
         await uploadFile(files[i]);
     }
     
+    // Show toast message
+    showToast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded successfully`, 'success');
+
+    persistDriveStatus(`${files.length} file${files.length > 1 ? 's' : ''} uploaded successfully`, 'success');
+    
     // Reload page after all uploads complete
     setTimeout(() => {
         location.reload();
@@ -413,7 +454,7 @@ function createProgressItem(id, filename, size) {
     
     div.innerHTML = `
         <div class="upload-file-info">
-            <div class="upload-file-icon">📄</div>
+            <div class="upload-file-icon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 1.5V7h3.5L14 3.5Z"/></svg></div>
             <div class="upload-file-details">
                 <div class="upload-file-name" title="${filename}">${filename}</div>
                 <div class="upload-file-size">${sizeStr}</div>
@@ -499,7 +540,13 @@ async function toggleStar(file, isStarred) {
 }
 
 async function deleteFile(file, userId) {
-    if (!confirm("Delete file: " + file + " ?")) return;
+    const ok = await showConfirmModal({
+        title: 'Delete file',
+        message: `Delete "${file}"?`,
+        confirmText: 'Delete',
+        danger: true
+    });
+    if (!ok) return;
 
     const formData = new FormData();
     formData.append('filename', file);
@@ -518,8 +565,13 @@ async function deleteFile(file, userId) {
             return;
         }
 
-        if (data.success) location.reload();
-        else alert(data.message || 'Delete failed');
+        if (data.success) {
+            showToast('File deleted successfully', 'success');
+            persistDriveStatus('File deleted successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert(data.message || 'Delete failed');
+        }
     } catch (err) {
         console.error(err);
         alert('Request failed: ' + err.message);
@@ -527,7 +579,13 @@ async function deleteFile(file, userId) {
 }
 
 async function deleteFolder(folder, userId) {
-    if (!confirm("Delete folder: " + folder + " and all its contents?")) return;
+    const ok = await showConfirmModal({
+        title: 'Delete folder',
+        message: `Delete "${folder}" and all its contents?`,
+        confirmText: 'Delete',
+        danger: true
+    });
+    if (!ok) return;
 
     const formData = new FormData();
     formData.append('folder_name', folder);
@@ -537,8 +595,13 @@ async function deleteFolder(folder, userId) {
         const res = await fetch('delete_folder.php', { method: 'POST', body: formData });
         const data = await res.json();
 
-        if (data.success) location.reload();
-        else alert(data.message || 'Delete failed');
+        if (data.success) {
+            showToast('Folder deleted successfully', 'success');
+            persistDriveStatus('Folder deleted successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert(data.message || 'Delete failed');
+        }
     } catch (err) {
         console.error(err);
         alert('Request failed: ' + err.message);
@@ -546,7 +609,12 @@ async function deleteFolder(folder, userId) {
 }
 
 async function renameFolder(oldName, userId) {
-    const newName = prompt("Rename folder to:", oldName);
+    const newName = await showRenameModal({
+        title: 'Rename folder',
+        label: 'New folder name',
+        defaultValue: oldName,
+        confirmText: 'Rename'
+    });
     if (!newName || newName.trim() === '' || newName === oldName) return;
 
     const formData = new FormData();
@@ -558,8 +626,13 @@ async function renameFolder(oldName, userId) {
         const res = await fetch('rename_folder.php', { method: 'POST', body: formData });
         const data = await res.json();
 
-        if (data.success) location.reload();
-        else alert(data.message || 'Rename failed');
+        if (data.success) {
+            showToast('Folder renamed successfully', 'success');
+            persistDriveStatus('Folder renamed successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert(data.message || 'Rename failed');
+        }
     } catch (err) {
         console.error(err);
         alert('Request failed: ' + err.message);
@@ -567,7 +640,12 @@ async function renameFolder(oldName, userId) {
 }
 
 async function renameFile(oldName, userId) {
-    const newName = prompt("Rename file to:", oldName);
+    const newName = await showRenameModal({
+        title: 'Rename file',
+        label: 'New file name',
+        defaultValue: oldName,
+        confirmText: 'Rename'
+    });
     if (!newName || newName.trim() === '' || newName === oldName) return;
 
     const formData = new FormData();
@@ -579,8 +657,13 @@ async function renameFile(oldName, userId) {
         const res = await fetch('rename_file.php', { method: 'POST', body: formData });
         const data = await res.json();
 
-        if (data.success) location.reload();
-        else alert(data.message || 'Rename failed');
+        if (data.success) {
+            showToast('File renamed successfully', 'success');
+            persistDriveStatus('File renamed successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert(data.message || 'Rename failed');
+        }
     } catch (err) {
         console.error(err);
         alert('Request failed: ' + err.message);
@@ -676,9 +759,197 @@ document.getElementById('previewModal')?.addEventListener('click', function(e) {
         closePreviewModal();
     }
 });
+
+// ==================== TOAST NOTIFICATION ====================
+function showConfirmModal({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('actionModal');
+        const titleEl = modal.querySelector('[data-action-title]');
+        const messageEl = modal.querySelector('[data-action-message]');
+        const inputEl = modal.querySelector('[data-action-input]');
+        const hintEl = modal.querySelector('[data-action-hint]');
+        const cancelBtn = modal.querySelector('[data-action-cancel]');
+        const confirmBtn = modal.querySelector('[data-action-confirm]');
+        const closeBtn = modal.querySelector('[data-action-close]');
+
+        titleEl.textContent = title || 'Confirm';
+        messageEl.textContent = message || '';
+        inputEl.style.display = 'none';
+        inputEl.value = '';
+        hintEl.style.display = 'none';
+        hintEl.textContent = '';
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = `action-btn ${danger ? 'action-btn-danger' : 'action-btn-primary'}`;
+        confirmBtn.disabled = false;
+        cancelBtn.textContent = cancelText;
+
+        function cleanup(result) {
+            modal.classList.remove('show');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onCancel() {
+            cleanup(false);
+        }
+
+        function onConfirm() {
+            cleanup(true);
+        }
+
+        function onBackdrop(e) {
+            if (e.target === modal) onCancel();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        modal.classList.add('show');
+        confirmBtn.focus();
+    });
+}
+
+function showRenameModal({ title, label, defaultValue = '', confirmText = 'Rename', cancelText = 'Cancel' }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('actionModal');
+        const titleEl = modal.querySelector('[data-action-title]');
+        const messageEl = modal.querySelector('[data-action-message]');
+        const inputEl = modal.querySelector('[data-action-input]');
+        const hintEl = modal.querySelector('[data-action-hint]');
+        const cancelBtn = modal.querySelector('[data-action-cancel]');
+        const confirmBtn = modal.querySelector('[data-action-confirm]');
+        const closeBtn = modal.querySelector('[data-action-close]');
+
+        titleEl.textContent = title || 'Rename';
+        messageEl.textContent = label || 'New name';
+        inputEl.style.display = 'block';
+        inputEl.value = defaultValue;
+        inputEl.setSelectionRange(0, inputEl.value.length);
+        hintEl.style.display = 'block';
+        hintEl.textContent = 'Press Enter to confirm or Escape to cancel.';
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = 'action-btn action-btn-primary';
+        cancelBtn.textContent = cancelText;
+
+        function updateState() {
+            confirmBtn.disabled = inputEl.value.trim() === '';
+        }
+
+        function cleanup(result) {
+            modal.classList.remove('show');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            inputEl.removeEventListener('input', updateState);
+            inputEl.removeEventListener('keydown', onInputKey);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onCancel() {
+            cleanup(null);
+        }
+
+        function onConfirm() {
+            if (inputEl.value.trim() === '') return;
+            cleanup(inputEl.value.trim());
+        }
+
+        function onBackdrop(e) {
+            if (e.target === modal) onCancel();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+        }
+
+        function onInputKey(e) {
+            if (e.key === 'Enter') onConfirm();
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        inputEl.addEventListener('input', updateState);
+        inputEl.addEventListener('keydown', onInputKey);
+        document.addEventListener('keydown', onKey);
+
+        updateState();
+        modal.classList.add('show');
+        inputEl.focus();
+    });
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    let icon = '';
+    if (type === 'success') {
+        icon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
+    } else if (type === 'error') {
+        icon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>';
+    } else {
+        icon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+    }
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-message">${message}</div>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            container.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
 </script>
 
 <!-- Preview Modal -->
+<div id="actionModal" class="action-modal" aria-hidden="true">
+    <div class="action-content" role="dialog" aria-modal="true">
+        <div class="action-header">
+            <h3 class="action-title" data-action-title>Action</h3>
+            <button class="action-close" type="button" data-action-close>×</button>
+        </div>
+        <div class="action-body">
+            <p class="action-message" data-action-message></p>
+            <input class="action-input" data-action-input type="text" autocomplete="off" />
+            <div class="action-hint" data-action-hint></div>
+        </div>
+        <div class="action-footer">
+            <button class="action-btn action-btn-ghost" type="button" data-action-cancel>Cancel</button>
+            <button class="action-btn action-btn-primary" type="button" data-action-confirm>Confirm</button>
+        </div>
+    </div>
+</div>
+
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
         <div class="preview-header">

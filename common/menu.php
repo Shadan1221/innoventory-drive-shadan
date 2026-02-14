@@ -14,23 +14,56 @@ $storagePercent = 0;
 if ($userId > 0) {
     require_once "../../config.php";
     
-    $stmt = $db->prepare("SELECT storage_gb FROM users WHERE id = ?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $userRow = $result->fetch_assoc();
-    $stmt->close();
-    
-    if ($userRow && isset($userRow['storage_gb'])) {
-        $totalStorage = (int)$userRow['storage_gb'];
+    // Function to calculate folder size
+    function calculateFolderSize($path) {
+        if (!is_dir($path)) return 0;
+        $size = 0;
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($files as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+            }
+        }
+        return $size;
     }
     
-    // Mock used storage calculation (consistent based on user ID using a seed)
-    // This ensures the value doesn't change when navigating between pages
-    mt_srand($userId); // Seed random with user ID for consistency
-    $usedStorage = round($totalStorage * (60 + mt_rand(0, 20)) / 100, 2);
-    $storagePercent = round(($usedStorage / $totalStorage) * 100);
-    mt_srand(); // Reset to default seed
+    // Check if user is admin
+    if ($role === 'admin') {
+        // For admin: Show their usage out of total system storage
+        // Calculate total system storage (sum of all users' allocated storage)
+        $systemQuery = mysqli_query($db, "SELECT SUM(storage_gb) as total_system_storage FROM users WHERE status='approved'");
+        $systemRow = mysqli_fetch_assoc($systemQuery);
+        $totalStorage = ($systemRow && $systemRow['total_system_storage']) ? (int)$systemRow['total_system_storage'] : 1;
+        
+        // Calculate admin's actual used storage
+        $adminFolder = "../../uploads/user_" . $userId;
+        $usedBytes = calculateFolderSize($adminFolder);
+        $usedStorage = round($usedBytes / (1024 * 1024 * 1024), 2); // Convert to GB
+        
+        $storagePercent = $totalStorage > 0 ? round(($usedStorage / $totalStorage) * 100) : 0;
+    } else {
+        // For regular users: Show their usage out of their allocated storage
+        $stmt = $db->prepare("SELECT storage_gb FROM users WHERE id = ?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $userRow = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($userRow && isset($userRow['storage_gb'])) {
+            $totalStorage = (int)$userRow['storage_gb'];
+        }
+        
+        // Calculate actual used storage
+        $userFolder = "../../uploads/user_" . $userId;
+        $usedBytes = calculateFolderSize($userFolder);
+        $usedStorage = round($usedBytes / (1024 * 1024 * 1024), 2); // Convert to GB
+        
+        $storagePercent = $totalStorage > 0 ? round(($usedStorage / $totalStorage) * 100) : 0;
+    }
 }
 
 /* Active helper */
@@ -55,13 +88,13 @@ function isActive($needle, $currentPage) {
         <!-- Dropdown Menu -->
         <div class="sb-new-dropdown" id="newDropdown">
             <button class="sb-new-option" type="button" onclick="showCreateFolderDialog()">
-                <span>📁</span> New Folder
+                <span><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2Z"/></svg></span> New Folder
             </button>
             <button class="sb-new-option" type="button" onclick="document.getElementById('fileUploadInput').click()">
-                <span>📤</span> File Upload
+                <span><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5 20h14v-2H5v2Zm7-16-5 5h3v4h4v-4h3l-5-5Z"/></svg></span> File Upload
             </button>
             <button class="sb-new-option" type="button" onclick="document.getElementById('folderUploadInput').click()">
-                <span>📦</span> Folder Upload
+                <span><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 4h6l2 2h8c1.1 0 2 .9 2 2v2H2V6c0-1.1.9-2 2-2Zm-2 8h20v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-8Zm10-3-4 4h3v4h2v-4h3l-4-4Z"/></svg></span> Folder Upload
             </button>
         </div>
 
@@ -95,14 +128,20 @@ function isActive($needle, $currentPage) {
 
             <a class="sb-link <?= ($currentPage === 'users_drive.php' ? 'active' : '') ?>"
                href="../../pkg/file-management/users_drive.php">
-                <span class="sb-ico">👥︎</span>
+                <span class="sb-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4s-3 1.567-3 3.5S14.343 11 16 11Zm-8 0c1.657 0 3-1.567 3-3.5S9.657 4 8 4 5 5.567 5 7.5 6.343 11 8 11Zm0 2c-2.761 0-5 2.239-5 5v2h10v-2c0-2.761-2.239-5-5-5Zm8 0c-.526 0-1.03.078-1.5.22 1.79.98 3 2.872 3 5.03V20h5v-2c0-2.761-2.239-5-5-5Z"/></svg></span>
                 <span>Users Drive</span>
             </a>
 
             <a class="sb-link <?= ($currentPage === 'users.php' ? 'active' : '') ?>"
                href="../../pkg/user-management/users.php">
-                <span class="sb-ico">👤</span>
+                <span class="sb-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5Zm0 2c-4.418 0-8 2.239-8 5v3h16v-3c0-2.761-3.582-5-8-5Z"/></svg></span>
                 <span>Users</span>
+            </a>
+
+            <a class="sb-link <?= ($currentPage === 'analysis.php' ? 'active' : '') ?>"
+               href="../../pkg/user-management/analysis.php">
+                <span class="sb-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 19h16v2H2V3h2v16Zm3-2h2V10H7v7Zm4 0h2V6h-2v11Zm4 0h2V13h-2v4Z"/></svg></span>
+                <span>Analysis</span>
             </a>
 
         <?php else: ?>
@@ -124,13 +163,13 @@ function isActive($needle, $currentPage) {
 
         <a class="sb-link <?= ($currentPage === 'starred.php' ? 'active' : '') ?>"
            href="../../pkg/file-management/starred.php">
-            <span class="sb-ico">☆</span>
+            <span class="sb-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z"/></svg></span>
             <span>Starred</span>
         </a>
 
         <a class="sb-link <?= ($currentPage === 'bin.php' ? 'active' : '') ?>"
            href="../../pkg/file-management/bin.php">
-            <span class="sb-ico">🗑︎</span>
+            <span class="sb-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 3h6l1 2h5v2H3V5h5l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Z"/></svg></span>
             <span>Bin</span>
         </a>
 
@@ -147,7 +186,11 @@ function isActive($needle, $currentPage) {
         </div>
 
         <div class="sb-storage-meta">
-            <span><?= round($usedStorage, 1) ?> GB of <?= $totalStorage ?> GB used</span>
+            <?php if ($role === 'admin'): ?>
+                <span><?= round($usedStorage, 1) ?> GB of <?= $totalStorage ?> GB system storage</span>
+            <?php else: ?>
+                <span><?= round($usedStorage, 1) ?> GB of <?= $totalStorage ?> GB used</span>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -172,6 +215,7 @@ function isActive($needle, $currentPage) {
 document.addEventListener("DOMContentLoaded", function () {
     const btn  = document.getElementById("sbKebabBtn");
     const menu = document.getElementById("sbKebabMenu");
+    const logo = document.getElementById("themeLogoMenu");
 
     if (!btn || !menu) return;
 
@@ -183,6 +227,19 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function () {
         menu.classList.remove("show");
     });
+
+    function syncLogoTheme() {
+        if (!logo) return;
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const darkSrc = logo.getAttribute("data-dark");
+        const lightSrc = logo.getAttribute("data-light");
+        logo.src = isDark ? darkSrc : lightSrc;
+    }
+
+    syncLogoTheme();
+
+    const observer = new MutationObserver(syncLogoTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 });
 
 // Toggle New Menu Dropdown

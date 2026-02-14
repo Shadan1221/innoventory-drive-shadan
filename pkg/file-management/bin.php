@@ -73,7 +73,9 @@ $stmt->close();
                                 <button class="kebab-item" onclick="restoreFile('<?= $safeFile ?>')">Restore</button>
                                 <button class="kebab-item delete" onclick="deletePermanent('<?= $safeFile ?>')">Delete Permanently</button>
                             </div>
-                            <div class="file-icon">🗑️</div>
+                            <div class="file-icon">
+                                <svg class="ico-bin" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3h6l1 2h5v2H3V5h5l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Z"/></svg>
+                            </div>
                             <div class="file-name"><?= htmlspecialchars($row['filename']); ?></div>
                             <div class="file-meta">Deleted: <?= htmlspecialchars($row['deleted_at']); ?></div>
                         </div>
@@ -114,7 +116,13 @@ async function restoreFile(file) {
 }
 
 async function deletePermanent(file) {
-    if (!confirm('Delete permanently: ' + file + ' ?')) return;
+    const ok = await showConfirmModal({
+        title: 'Delete permanently',
+        message: `Delete "${file}" forever? This cannot be undone.`,
+        confirmText: 'Delete',
+        danger: true
+    });
+    if (!ok) return;
     const formData = new FormData();
     formData.append('action', 'delete');
     formData.append('filename', file);
@@ -128,6 +136,83 @@ async function deletePermanent(file) {
         console.error(e); alert('Request failed');
     }
 }
+
+function showConfirmModal({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('actionModal');
+        const titleEl = modal.querySelector('[data-action-title]');
+        const messageEl = modal.querySelector('[data-action-message]');
+        const inputEl = modal.querySelector('[data-action-input]');
+        const hintEl = modal.querySelector('[data-action-hint]');
+        const cancelBtn = modal.querySelector('[data-action-cancel]');
+        const confirmBtn = modal.querySelector('[data-action-confirm]');
+        const closeBtn = modal.querySelector('[data-action-close]');
+
+        titleEl.textContent = title || 'Confirm';
+        messageEl.textContent = message || '';
+        inputEl.style.display = 'none';
+        inputEl.value = '';
+        hintEl.style.display = 'none';
+        hintEl.textContent = '';
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = `action-btn ${danger ? 'action-btn-danger' : 'action-btn-primary'}`;
+        confirmBtn.disabled = false;
+        cancelBtn.textContent = cancelText;
+
+        function cleanup(result) {
+            modal.classList.remove('show');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            closeBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onCancel() {
+            cleanup(false);
+        }
+
+        function onConfirm() {
+            cleanup(true);
+        }
+
+        function onBackdrop(e) {
+            if (e.target === modal) onCancel();
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        closeBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        modal.classList.add('show');
+        confirmBtn.focus();
+    });
+}
 </script>
+
+<div id="actionModal" class="action-modal" aria-hidden="true">
+    <div class="action-content" role="dialog" aria-modal="true">
+        <div class="action-header">
+            <h3 class="action-title" data-action-title>Action</h3>
+            <button class="action-close" type="button" data-action-close>×</button>
+        </div>
+        <div class="action-body">
+            <p class="action-message" data-action-message></p>
+            <input class="action-input" data-action-input type="text" autocomplete="off" />
+            <div class="action-hint" data-action-hint></div>
+        </div>
+        <div class="action-footer">
+            <button class="action-btn action-btn-ghost" type="button" data-action-cancel>Cancel</button>
+            <button class="action-btn action-btn-primary" type="button" data-action-confirm>Confirm</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

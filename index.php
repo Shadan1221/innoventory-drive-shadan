@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login_btn'])) {
     if ($login_type === 'admin') {
         $username = trim($_POST['username']);
         $stmt = $db->prepare("
-            SELECT id, name, password, role, status 
+            SELECT id, name, password, role, status, status_notified
             FROM users 
             WHERE (name = ? OR email = ?) AND role = 'admin'
             LIMIT 1
@@ -28,7 +28,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login_btn'])) {
     } else {
         $email = trim($_POST['email']);
         $stmt = $db->prepare("
-            SELECT id, name, password, role, status 
+            SELECT id, name, password, role, status, status_notified
             FROM users 
             WHERE email = ? AND role = 'user'
             LIMIT 1
@@ -43,16 +43,53 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login_btn'])) {
 
     if ($user && password_verify($password, $user['password'])) {
 
+        // Check for status change notification
+        $statusChanged = false;
+        $statusMessage = '';
+        
+        if ($user['status_notified'] !== $user['status']) {
+            $statusChanged = true;
+            
+            // User was denied but now approved
+            if ($user['status_notified'] === 'denied' && $user['status'] === 'approved') {
+                $statusMessage = "Good news! Your account has been approved. Welcome back!";
+            }
+            // User was approved but now denied
+            elseif ($user['status_notified'] === 'approved' && $user['status'] === 'denied') {
+                $statusMessage = "Your account access has been revoked. Please contact the administrator.";
+            }
+        }
+
         if ($user['status'] === 'pending') {
             $error = "Your account is still pending approval.";
-        } elseif ($user['status'] === 'denied') {
+        } elseif ($user['status'] === 'denied' && !$statusChanged) {
             $error = "Your access has been denied.";
+        } elseif ($user['status'] === 'denied' && $statusChanged) {
+            // Just denied - show message and don't allow login
+            $error = $statusMessage;
+            
+            // Update the notified status
+            $updateStmt = $db->prepare("UPDATE users SET status_notified = ? WHERE id = ?");
+            $updateStmt->bind_param("si", $user['status'], $user['id']);
+            $updateStmt->execute();
+            $updateStmt->close();
         } else {
             // ✅ CORRECT SESSION KEYS
             $_SESSION['loggedin'] = true;
             $_SESSION['user_id']  = $user['id'];
             $_SESSION['name']     = $user['name'];
             $_SESSION['role']     = $user['role'];
+            
+            // If there's a status change message, store it in session
+            if ($statusChanged && $statusMessage) {
+                $_SESSION['status_change_message'] = $statusMessage;
+            }
+            
+            // Update the notified status
+            $updateStmt = $db->prepare("UPDATE users SET status_notified = ? WHERE id = ?");
+            $updateStmt->bind_param("si", $user['status'], $user['id']);
+            $updateStmt->execute();
+            $updateStmt->close();
 
             // Redirect correctly
             if ($user['role'] === 'admin') {
@@ -168,6 +205,30 @@ const emailInput  = document.getElementById('email');
 const userInput   = document.getElementById('username');
 
 let adminMode = false;
+
+// Theme-aware logo switching for auth page
+function updateAuthLogo() {
+    const logo = document.getElementById('themeLogoAuth');
+    if (logo) {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const lightSrc = logo.getAttribute('data-light');
+        const darkSrc = logo.getAttribute('data-dark');
+        logo.src = isDark ? darkSrc : lightSrc;
+    }
+}
+
+// Update logo on page load
+updateAuthLogo();
+
+// Listen for theme changes
+const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'data-theme') {
+            updateAuthLogo();
+        }
+    });
+});
+observer.observe(document.documentElement, { attributes: true });
 
 btnAdmin.addEventListener('click', function (e) {
     e.preventDefault();
