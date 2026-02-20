@@ -39,6 +39,7 @@ function formatBytes($bytes) {
 $pending = mysqli_query($db, "SELECT * FROM users WHERE status='pending' ORDER BY role, name");
 $approved = mysqli_query($db, "SELECT * FROM users WHERE status='approved' ORDER BY name");
 $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY name");
+$totalUsedBytes = 0;
 
 ?>
 <!DOCTYPE html>
@@ -82,8 +83,8 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
         .reset-btn { background: #ef4444; color: white; border-color: #ef4444; }
         .reset-btn:hover { background: #dc2626; }
         .no-results { text-align: center; padding: 20px; color: var(--muted); font-style: italic; }
-        [data-theme="dark"] table th { background: rgba(255, 255, 255, 0.05); }
-        [data-theme="dark"] table th.sortable:hover { background: rgba(255, 255, 255, 0.08); }
+        [data-theme="dark"] table th { background: #111827; color: #e5e7eb; }
+        [data-theme="dark"] table th.sortable:hover { background: #1f2937; }
         [data-theme="dark"] .message.success { background: rgba(34, 197, 94, 0.1); border-color: #4ade80; color: #4ade80; }
         [data-theme="dark"] .message.error { background: rgba(239, 68, 68, 0.1); border-color: #f87171; color: #f87171; }
         
@@ -124,8 +125,6 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
                 <div class="controls-container">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="userSearch" class="search-input" placeholder="Search users by name..." autocomplete="off">
-                    <button class="sort-btn" id="sortEmailBtn" onclick="sortByEmail()">Sort by Email</button>
-                    <button class="sort-btn" id="sortStorageBtn" onclick="sortByStorage()">Sort by Storage</button>
                     <button class="reset-btn" onclick="resetView()">Reset</button>
                 </div>
 
@@ -151,6 +150,7 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
                             $userFolder = "../../uploads/user_" . $row['id'];
                             $usedBytes = getFolderSize($userFolder);
                             $usedStorage = formatBytes($usedBytes);
+                            $totalUsedBytes += $usedBytes;
                         ?>
                         <tr>
                             <td><?= htmlspecialchars($row["name"]); ?></td>
@@ -208,6 +208,7 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
                             $userFolder = "../../uploads/user_" . $u['id'];
                             $usedBytes = getFolderSize($userFolder);
                             $usedStorage = formatBytes($usedBytes);
+                            $totalUsedBytes += $usedBytes;
                         ?>
                         <tr>
                             <td><?= htmlspecialchars($u['name']); ?></td>
@@ -260,6 +261,7 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
                             $userFolder = "../../uploads/user_" . $d['id'];
                             $usedBytes = getFolderSize($userFolder);
                             $usedStorage = formatBytes($usedBytes);
+                            $totalUsedBytes += $usedBytes;
                         ?>
                         <tr>
                             <td><?= htmlspecialchars($d['name']); ?></td>
@@ -286,6 +288,15 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
                             <td colspan="8" class="no-requests">No denied users.</td>
                         </tr>
                         <?php endif; ?>
+                    </tbody>
+                </table>
+
+                <table style="margin-top: 18px;">
+                    <tbody>
+                        <tr>
+                            <td style="font-weight: 600;">Total storage used (all users)</td>
+                            <td style="text-align: right; font-weight: 600;"><?= formatBytes($totalUsedBytes); ?></td>
+                        </tr>
                     </tbody>
                 </table>
 
@@ -398,50 +409,35 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
         }
     }
 
-    // Sort by email functionality
-    function sortByEmail() {
-        const btn = document.getElementById('sortEmailBtn');
-        const storageBtn = document.getElementById('sortStorageBtn');
-        
-        // Toggle direction or set to ascending if not current sort
-        if (currentSort.column === 'email') {
-            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-            currentSort.column = 'email';
-            currentSort.direction = 'asc';
-        }
-        
-        // Update button states
-        btn.classList.add('active');
-        storageBtn.classList.remove('active');
-        
-        // Sort all tables
-        sortTable('pendingTable', 'email', currentSort.direction);
-        sortTable('approvedTable', 'email', currentSort.direction);
-        sortTable('deniedTable', 'email', currentSort.direction);
-    }
+    // Sort by clicking table headers
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const column = th.getAttribute('data-column');
+            if (!column) return;
 
-    // Sort by storage functionality
-    function sortByStorage() {
-        const btn = document.getElementById('sortStorageBtn');
-        const emailBtn = document.getElementById('sortEmailBtn');
-        
-        // Toggle direction or set to descending if not current sort (highest first)
-        if (currentSort.column === 'storage') {
-            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-            currentSort.column = 'storage';
-            currentSort.direction = 'desc'; // Start with highest storage
-        }
-        
-        // Update button states
-        btn.classList.add('active');
-        emailBtn.classList.remove('active');
-        
-        // Sort all tables
-        sortTable('pendingTable', 'storage', currentSort.direction);
-        sortTable('approvedTable', 'storage', currentSort.direction);
-        sortTable('deniedTable', 'storage', currentSort.direction);
+            let direction = 'asc';
+            if (currentSort.column === column) {
+                direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else if (column === 'storage') {
+                direction = 'desc';
+            }
+
+            currentSort = { column, direction };
+            updateSortIndicators(column, direction);
+
+            sortTable('pendingTable', column, direction);
+            sortTable('approvedTable', column, direction);
+            sortTable('deniedTable', column, direction);
+        });
+    });
+
+    function updateSortIndicators(column, direction) {
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+            if (th.getAttribute('data-column') === column) {
+                th.classList.add(direction);
+            }
+        });
     }
 
     // Generic sort function
@@ -489,10 +485,7 @@ $denied = mysqli_query($db, "SELECT * FROM users WHERE status='denied' ORDER BY 
         
         // Reset sort state
         currentSort = { column: null, direction: 'asc' };
-        
-        // Remove active states from buttons
-        document.getElementById('sortEmailBtn').classList.remove('active');
-        document.getElementById('sortStorageBtn').classList.remove('active');
+        updateSortIndicators('', 'asc');
         
         // Reload the page to reset everything
         window.location.href = window.location.pathname;

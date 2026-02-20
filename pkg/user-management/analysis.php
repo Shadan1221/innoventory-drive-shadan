@@ -119,9 +119,9 @@ $total_users = count($all_users);
             </div>
 
             <div class="charts-grid">
-                <div class="chart-card">
-                    <h2>User Status <small style="font-weight:400; color:var(--muted)">(Click segments to filter)</small></h2>
-                    <canvas id="statusChart"></canvas>
+                <div class="chart-card full-width">
+                    <h2>Registration Trends (Last 30 Days)</h2>
+                    <canvas id="lineChart" style="max-height: 300px;"></canvas>
                 </div>
 
                 <div class="chart-card">
@@ -129,9 +129,9 @@ $total_users = count($all_users);
                     <canvas id="roleChart"></canvas>
                 </div>
 
-                <div class="chart-card full-width">
-                    <h2>Registration Trends (Last 30 Days)</h2>
-                    <canvas id="lineChart" style="max-height: 300px;"></canvas>
+                <div class="chart-card">
+                    <h2>User Status <small style="font-weight:400; color:var(--muted)">(Click segments to filter)</small></h2>
+                    <canvas id="statusChart"></canvas>
                 </div>
             </div>
 

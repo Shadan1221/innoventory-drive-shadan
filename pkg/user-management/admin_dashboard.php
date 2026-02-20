@@ -133,6 +133,13 @@ if (isset($_SESSION['status_change_message'])) {
             padding: 40px;
             color: var(--muted);
         }
+        [data-theme="dark"] table th {
+            background: #111827;
+            color: #e5e7eb;
+        }
+        [data-theme="dark"] table tr:hover {
+            background: rgba(255,255,255,0.04);
+        }
         .header-section {
             display: flex;
             justify-content: space-between;

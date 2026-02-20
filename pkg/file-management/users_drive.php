@@ -35,10 +35,17 @@ $db->query("
 /* ================= GET USER LIST ================= */
 $usersList = [];
 $res = $db->query("
-    SELECT id, name
+    SELECT id, name, status
     FROM users
-    WHERE role='user' AND status='approved'
-    ORDER BY name
+    WHERE role='user'
+    ORDER BY 
+        CASE status 
+            WHEN 'approved' THEN 1 
+            WHEN 'pending' THEN 2 
+            WHEN 'denied' THEN 3 
+            ELSE 4 
+        END, 
+        name ASC
 ");
 if ($res) {
     while ($row = $res->fetch_assoc()) {
@@ -99,6 +106,18 @@ if ($viewUserId > 0) {
     <title>Users Drive - Innoventory</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/main.css">
+    <style>
+        .user-link.denied { opacity: 0.7; }
+        .user-link.denied:hover { opacity: 1; }
+        .user-link.pending { opacity: 0.75; }
+        .user-link.pending:hover { opacity: 1; }
+        .user-link.other-status { opacity: 0.6; }
+        .user-link.other-status:hover { opacity: 1; }
+        .user-search-input:focus { outline: none; border-color: var(--accent) !important; }
+        [data-theme="dark"] .user-search-input { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--text); }
+        [data-theme="dark"] .sort-btn { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--text); }
+        [data-theme="dark"] .sort-btn.active, [data-theme="dark"] .sort-btn[style*="var(--accent)"] { background: var(--accent) !important; color: white !important; }
+    </style>
 </head>
 <body>
 
@@ -124,17 +143,47 @@ if ($viewUserId > 0) {
                 <aside class="drive-users">
                     <h3>Users</h3>
 
+                    <!-- Search and Sort Controls -->
+                    <div class="users-controls" style="margin-bottom: 12px;">
+                        <input type="text" id="userSearch" class="user-search-input" placeholder="Search users..." autocomplete="off" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--text); margin-bottom: 8px;">
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" id="sortNameBtn" class="sort-btn active" onclick="sortUsers('name')" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--accent); color: white; font-size: 12px; cursor: pointer;">A-Z</button>
+                            <button type="button" id="sortStatusBtn" class="sort-btn" onclick="sortUsers('status')" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12px; cursor: pointer;">Status</button>
+                        </div>
+                    </div>
+
+                    <div id="usersList">
                     <?php if (empty($usersList)): ?>
-                        <div class="empty-state" style="padding: 20px 0;">No approved users.</div>
+                        <div class="empty-state" style="padding: 20px 0;">No users found.</div>
                     <?php else: ?>
                         <?php foreach ($usersList as $u): ?>
-                            <?php $active = ($viewUserId === (int)$u['id']); ?>
-                            <a class="user-link <?= $active ? 'active' : '' ?>"
-                               href="users_drive.php?user_id=<?= (int)$u['id'] ?>">
-                                <?= htmlspecialchars($u['name']) ?>
+                            <?php 
+                                $active = ($viewUserId === (int)$u['id']); 
+                                $userStatus = $u['status'];
+                                $statusLabel = '';
+                                $statusClass = '';
+                                if ($userStatus === 'denied') {
+                                    $statusLabel = ' <span style="color: #ef4444; font-size: 11px;">(Denied)</span>';
+                                    $statusClass = ' denied';
+                                } elseif ($userStatus === 'pending') {
+                                    $statusLabel = ' <span style="color: #f59e0b; font-size: 11px;">(Pending)</span>';
+                                    $statusClass = ' pending';
+                                } elseif ($userStatus !== 'approved') {
+                                    $statusLabel = ' <span style="color: #6b7280; font-size: 11px;">(' . ucfirst(htmlspecialchars($userStatus)) . ')</span>';
+                                    $statusClass = ' other-status';
+                                }
+                                $displayName = htmlspecialchars($u['name']) . $statusLabel;
+                            ?>
+                            <a class="user-link <?= $active ? 'active' : '' ?><?= $statusClass ?>"
+                               href="users_drive.php?user_id=<?= (int)$u['id'] ?>"
+                               data-name="<?= htmlspecialchars(strtolower($u['name'])) ?>"
+                               data-status="<?= htmlspecialchars($u['status']) ?>">
+                                <?= $displayName ?>
                             </a>
                         <?php endforeach; ?>
                     <?php endif; ?>
+                    </div>
+                    <div id="noUsersMsg" class="empty-state" style="padding: 20px 0; display: none;">No users match your search.</div>
                 </aside>
 
                 <!-- RIGHT FILES -->
@@ -542,6 +591,77 @@ function showRenameModal({ title, label, defaultValue = '', confirmText = 'Renam
         modal.classList.add('show');
         inputEl.focus();
     });
+}
+
+// ==================== USER SEARCH & SORT ====================
+let currentSort = 'name';
+let sortDirection = 'asc';
+
+document.getElementById('userSearch')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    filterUsers(searchTerm);
+});
+
+function filterUsers(searchTerm) {
+    const userLinks = document.querySelectorAll('#usersList .user-link');
+    let visibleCount = 0;
+
+    userLinks.forEach(link => {
+        const name = link.getAttribute('data-name') || '';
+        if (searchTerm === '' || name.includes(searchTerm)) {
+            link.style.display = '';
+            visibleCount++;
+        } else {
+            link.style.display = 'none';
+        }
+    });
+
+    const noMsg = document.getElementById('noUsersMsg');
+    if (noMsg) {
+        noMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+}
+
+function sortUsers(by) {
+    const container = document.getElementById('usersList');
+    if (!container) return;
+
+    const links = Array.from(container.querySelectorAll('.user-link'));
+    if (links.length === 0) return;
+
+    // Toggle direction if same column
+    if (currentSort === by) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = by;
+        sortDirection = 'asc';
+    }
+
+    // Update button styles
+    const nameBtn = document.getElementById('sortNameBtn');
+    const statusBtn = document.getElementById('sortStatusBtn');
+    if (nameBtn && statusBtn) {
+        nameBtn.style.background = by === 'name' ? 'var(--accent)' : 'var(--bg)';
+        nameBtn.style.color = by === 'name' ? 'white' : 'var(--text)';
+        statusBtn.style.background = by === 'status' ? 'var(--accent)' : 'var(--bg)';
+        statusBtn.style.color = by === 'status' ? 'white' : 'var(--text)';
+    }
+
+    links.sort((a, b) => {
+        let valA, valB;
+        if (by === 'name') {
+            valA = a.getAttribute('data-name') || '';
+            valB = b.getAttribute('data-name') || '';
+        } else {
+            valA = a.getAttribute('data-status') || '';
+            valB = b.getAttribute('data-status') || '';
+        }
+
+        let cmp = valA.localeCompare(valB);
+        return sortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    links.forEach(link => container.appendChild(link));
 }
 </script>
 

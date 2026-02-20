@@ -42,6 +42,9 @@ if ($userId > 0) {
         $adminFolder = "../../uploads/user_" . $userId;
         $usedBytes = calculateFolderSize($adminFolder);
         $usedStorage = round($usedBytes / (1024 * 1024 * 1024), 2); // Convert to GB
+        $usedDisplay = $usedBytes < (1024 * 1024 * 1024)
+            ? round($usedBytes / (1024 * 1024), 1) . " MB"
+            : round($usedStorage, 1) . " GB";
         
         $storagePercent = $totalStorage > 0 ? round(($usedStorage / $totalStorage) * 100) : 0;
     } else {
@@ -61,6 +64,9 @@ if ($userId > 0) {
         $userFolder = "../../uploads/user_" . $userId;
         $usedBytes = calculateFolderSize($userFolder);
         $usedStorage = round($usedBytes / (1024 * 1024 * 1024), 2); // Convert to GB
+        $usedDisplay = $usedBytes < (1024 * 1024 * 1024)
+            ? round($usedBytes / (1024 * 1024), 1) . " MB"
+            : round($usedStorage, 1) . " GB";
         
         $storagePercent = $totalStorage > 0 ? round(($usedStorage / $totalStorage) * 100) : 0;
     }
@@ -187,9 +193,9 @@ function isActive($needle, $currentPage) {
 
         <div class="sb-storage-meta">
             <?php if ($role === 'admin'): ?>
-                <span><?= round($usedStorage, 1) ?> GB of <?= $totalStorage ?> GB system storage</span>
+                <span><?= $usedDisplay ?> of <?= $totalStorage ?> GB system storage</span>
             <?php else: ?>
-                <span><?= round($usedStorage, 1) ?> GB of <?= $totalStorage ?> GB used</span>
+                <span><?= $usedDisplay ?> of <?= $totalStorage ?> GB used</span>
             <?php endif; ?>
         </div>
     </div>

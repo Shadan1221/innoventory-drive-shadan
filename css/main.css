@@ -1462,10 +1462,20 @@ body {
   border: 1px solid transparent;
   font-size: 14px;
   font-weight: 600;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .drive-status.show {
   display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.drive-status.fade-out {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .drive-status-success {

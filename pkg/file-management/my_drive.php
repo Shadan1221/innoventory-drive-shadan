@@ -278,12 +278,28 @@ const uploadProgressContainer = document.getElementById('uploadProgressContainer
 let uploadQueue = [];
 
 // ==================== STATUS MESSAGE ====================
+let driveStatusTimer = null;
+let driveStatusFadeTimer = null;
+
 function setDriveStatus(message, type = 'info') {
     const statusEl = document.getElementById('driveStatus');
     if (!statusEl) return;
 
+    // Clear any existing timers
+    if (driveStatusTimer) clearTimeout(driveStatusTimer);
+    if (driveStatusFadeTimer) clearTimeout(driveStatusFadeTimer);
+
     statusEl.textContent = message;
     statusEl.className = `drive-status drive-status-${type} show`;
+
+    // Auto-hide after 3.5 seconds
+    driveStatusTimer = setTimeout(() => {
+        statusEl.classList.add('fade-out');
+        driveStatusFadeTimer = setTimeout(() => {
+            statusEl.className = 'drive-status';
+            statusEl.textContent = '';
+        }, 400);
+    }, 3500);
 }
 
 function persistDriveStatus(message, type = 'info') {
